@@ -1,5 +1,7 @@
 import os
-if os.path.exists("/home/yanqi/Desktop/cshw/final_proj/captions_train-val2014.zip"):
+# I changed this to be a bit more generic
+# assuming the .zip exists in the current dir
+if not os.path.exists("captions_train-val2014.zip"):
 	os.system('wget http://msvocds.blob.core.windows.net/annotations-1-0-3/captions_train-val2014.zip')
 	os.system('unzip captions_train-val2014.zip')
 	print "not exist"
