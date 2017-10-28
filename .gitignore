@@ -1,0 +1,6 @@
+annotations/
+captions_train-val2014.zip
+coco_raw.json
+cocoapi/
+.DS_Store
+Flickr8k.token.txt
