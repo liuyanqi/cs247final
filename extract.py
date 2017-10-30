@@ -1,6 +1,8 @@
 import numpy as np
 
-f8kraw = open("Flickr8k.token.txt").readlines()
+dataset = './data/Flicker8k_test/Flickr8k.token.txt'
+
+f8kraw = open(dataset).readlines()
 dic = {}
 maxlen = 0
 

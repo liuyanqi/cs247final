@@ -1,15 +1,20 @@
 # cs247final
 
 ## Database needed:
+### MSCOCO (largest)
 http://cocodataset.org/#download \
-Download train data(http://images.cocodataset.org/zips/train2014.zip) and val data (http://images.cocodataset.org/zips/val2014.zip)\
+Download train data(http://images.cocodataset.org/zips/train2014.zip) and val data (http://images.cocodataset.org/zips/val2014.zip) \
 
-## preprocessing
-The preprocessing code is adapted from the original project repo (https://github.com/karpathy/neuraltalk2/blob/master/coco/coco_preprocess.ipynb).It break the data into a json file in the format of 
+###Flicker8k dataset
+Download image data: http://nlp.cs.illinois.edu/HockenmaierGroup/Framing_Image_Description/Flickr8k_Dataset.zip \
+Download text data: http://nlp.cs.illinois.edu/HockenmaierGroup/Framing_Image_Description/Flickr8k_text.zip
 
-0 'file_path' ,'captions'\
-1 'file_path' ,'captions'\
-...
+## preprocessing.py
+The preprocessing code is uses the vgg16 network adapted from(https://github.com/machrisaa/tensorflow-vgg) and you need to download the pretrained vgg16.npy file from the repo.
+Preprocessing.py scale the image to 224x224 and output the 4096D feature into the output file
+### output data format
+	filename: 4096D feature
+## extract.py
+extract.py reading in captions for each image, pad them to be the max length and save in dict with format: \
+	filename: [cap1, cap2, ..., cap5]
 
-## rcnn.py
-by specify directory of the training image, it is able to display the image and print out the corresponding captions
