@@ -1,6 +1,5 @@
 import os
 
-
 import vgg16
 import utils
 
@@ -25,39 +24,40 @@ with open(train_image_filename_path, 'r') as f:
 	train_file_names = f.read().splitlines()
 
 counter =0
-batchSz = 20
+batchSz = 1
 def dataLoader(train_file_names):
 	global counter
 	image_batch = []
+	print("from: "+ str(counter) +" to: " + str(counter+batchSz))
 	for filename in train_file_names[counter: counter+batchSz]:
 		img = Image.open(train_image_path + filename)
 		img = img.resize((224,224))
 		img = np.array(img)
 		image_batch.append(img)
-	counter = counter + batchSz
 	return np.array(image_batch), train_file_names[counter: counter+batchSz]
 	
 
-with tf.device('/cpu:0'):
+with tf.device('/gpu:0'):
 	sess = tf.Session()
-	images = tf.placeholder("float", [batchSz, 224, 224, 3])
+	images = tf.placeholder("float", [1, 224, 224, 3])
 	vgg = vgg16.Vgg16("./vgg16.npy")
 	vgg.build(images)
 
 	sess.run(tf.global_variables_initializer())
 
 	# for filename in train_file_names:
-	while counter < (len(train_file_names)-batchSz):
+	for counter in range(0, len(train_file_names)):
 		print(str(counter) + " / " + str(len(train_file_names)))
-		'''
-		img = Image.open(train_image_path + filename)
+		
+		img = Image.open(train_image_path + train_file_names[counter])
 		img = img.resize((224, 224))
 		# img.show()
 		img = np.array(img)
 		img = img.reshape((1, 224, 224, 3))
-		'''
-		img, filename_list = dataLoader(train_file_names)
 		
+		
+		# img, filename_list = dataLoader(train_file_names)
+
 		feed_dict = {images: img}
 
 		
@@ -66,9 +66,10 @@ with tf.device('/cpu:0'):
 		# # print(vgg.data_dict["conv1_1"])
 
 		feat = sess.run(vgg.relu7, feed_dict=feed_dict)
-		for idx, filename in enumerate(filename_list):
-			state[filename] = feat[idx]
+		# for idx, filename in enumerate(filename_list):
+		state[train_file_names[counter]] = feat
 
+print(state[train_file_names[0]])
 with open(output_file, 'wb') as f:
 	pickle.dump(state, f)
 
