@@ -15,7 +15,7 @@ with open(train_image_filename_path, 'r') as f:
 	train_file_names = f.read().splitlines()
 
 with open(feature_input, 'r') as f:
-	feature_state = pickle.load(f)
+	feature_state = np.load(f)
 
 caption = {}
 captions = open(dataset).readlines()
@@ -44,7 +44,7 @@ print(np.array(total_caption).shape)
 with open(feature_file, "wb") as f:
 	pickle.dump(np.array(total_feature), f)
 with open(caption_file, "wb") as f:
-	for title in captions:
+	for title in total_caption:
 		f.write(title)
 	f.close()
 

@@ -26,12 +26,15 @@ for line in captions:
 		all_words.append(word)
 print("load all the words")
 vocab_dict["START"] = 0
+
 vocabSz = 1
 vocab = set(all_words)
 for v in vocab:
 	vocab_dict[v] = vocabSz
 	idxtoword[vocabSz] = v
 	vocabSz +=1
+
+print vocabSz
 
 caption_encode = []
 caption_length = []
@@ -79,8 +82,8 @@ with tf.variable_scope("RNN"):
 		# 	print(output)
 		# 	total_output.append(list(output))
 
-	#shape of output is batchSz* hiddenSz
-	#shape of logits is batchSz* vocabS
+		#shape of output is batchSz* hiddenSz
+		#shape of logits is batchSz* vocabS
 		labels = tf.expand_dims(caption[:, i], 1)
 		ix_range=tf.range(0, batchSz, 1)
 		ixs = tf.expand_dims(ix_range, 1)
