@@ -17,14 +17,25 @@ index = 6000
 with open(feature_file, 'r') as f:
 	feat = pickle.load(f)
 with open(caption_file, 'r') as f:
-	captions = pickle.load(f)
-print("done reading the files")
-all_words = []
+	captions = f.readlines()
 
+captions = np.array(captions)
+print("done reading the files")
+print(captions.shape)
+print(feat.shape)
+trainSz = feat.shape[0]
+
+all_words = []
+maxlen = 0
 for line in captions:
 	for word in line.lower().split():
 		all_words.append(word)
+	if(len(line.split()) > maxlen):
+		maxlen = len(line.split())
+
 print("load all the words")
+print("maxlen: ", str(maxlen))
+
 vocab_dict["START"] = 0
 
 vocabSz = 1
@@ -34,23 +45,29 @@ for v in vocab:
 	idxtoword[vocabSz] = v
 	vocabSz +=1
 
+vocab_dict["STOP"] = vocabSz
+stop = vocabSz
 print vocabSz
 
 caption_encode = []
-caption_length = []
+caption_length =[]
 for line in captions:
 	line = line.lower().split()
 	line = [vocab_dict[w] for w in line]
-	caption_encode.append(line)
 	caption_length.append(len(line))
-caption_encode = np.array(caption_encode)
-maxlen = np.max(caption_length)
 
+	while(len(line) < maxlen):
+		line.append(stop)
+	caption_encode.append(line)
+caption_encode = np.array(caption_encode)
+
+print("shape of caption_encoder: ", str(caption_encode.shape))
 #def build model
 
 img = tf.placeholder(tf.float32, shape=[batchSz, featureSz])
 caption = tf.placeholder(tf.int32, shape=[batchSz, maxlen])
-mask = tf.placeholder(tf.int32, shape=[batchSz, maxlen])
+sequence = tf.placeholder(tf.float32, shape=[batchSz])
+mask = tf.sequence_mask(sequence, maxlen, tf.float32)
 
 #embed image feature into word embeeding space
 img_embedding = tf.Variable(tf.random_normal([featureSz, embedSz], stddev=0.1))
@@ -64,10 +81,10 @@ b = tf.Variable(tf.random_normal([vocabSz], stddev=0.1))
 rnn = tf.contrib.rnn.BasicLSTMCell(hiddenSz)
 
 E = tf.Variable(tf.random_normal([vocabSz, embedSz], stddev=0.1))
+state = rnn.zero_state(batchSz, tf.float32)
 
 total_loss = 0
 with tf.variable_scope("RNN"):
-	state = rnn.zero_state(batchSz, tf.float32)
 	for i in range(maxlen):
 		if i > 0:
 			current_embeddings = tf.nn.embedding_lookup(E, caption[:,i-1])
@@ -78,6 +95,7 @@ with tf.variable_scope("RNN"):
 			tf.get_variable_scope().reuse_variables()
 
 		output, state = rnn(current_embeddings, state)
+
 		# if i > 0 :
 		# 	print(output)
 		# 	total_output.append(list(output))
@@ -91,7 +109,7 @@ with tf.variable_scope("RNN"):
 		onehot = tf.sparse_to_dense(concat, tf.stack([batchSz, vocabSz]), 1.0, 0.0)
 		logit = tf.matmul(output, W) + b
 		xentropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot)
-
+		xentropy = xentropy * mask[:,i]
 	 	loss = tf.reduce_sum(xentropy)
 	 	total_loss += loss
 
@@ -103,6 +121,19 @@ train_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
+def train(feat, captions):
+	for ind in range(0, feat.shape[0], batchSz):
+		print(str(ind) + " / " + str(feat.shape[0]))
+		current_feats = feat[ind: ind+batchSz]
+		current_caption = caption_encode[ind: ind+batchSz]
+		seq = caption_length[ind: ind+batchSz]
 
+		feedDict = {img: current_feats, caption: current_caption, sequence: seq}
+		sessArgs = [total_loss, train_op]
+		loss,_ = sess.run(sessArgs, feedDict)
+		print(loss)
+
+
+train(feat, caption)
 
 
