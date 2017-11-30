@@ -2,12 +2,15 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import pandas as pd
+import os
 
 feature_file = "./data/Flicker8k_training_feat1.mat"
 caption_file = "./data/Flicker8k_training_text.mat"
 
 feature_path = './data/feats.npy'
 annotation_path = './data/results_20130124.token'
+
+model_path = './models/'
 
 vocab_dict = dict()
 idxtoword = dict()
@@ -19,6 +22,7 @@ hiddenSz = 256
 embedSz = 256
 index = 6000
 word_count_thres = 30
+epoch=150
 
 def get_data(annotation_path, feature_path):
      annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
@@ -57,7 +61,6 @@ for v in vocab:
 	idxtoword[vocabSz] = v
 	vocabSz +=1
 
-
 print vocabSz
 
 caption_encode = []
@@ -73,8 +76,6 @@ caption_encode = np.array(caption_encode)
 padd = np.full((len(caption_encode),), 0)
 caption_encode = np.column_stack((padd, caption_encode[:,:-1]))
 
-for i in range(5):
-	print(caption_encode[i])
 
 print("shape of caption_encoder: ", str(caption_encode.shape))
 #def build model
@@ -129,27 +130,34 @@ with tf.variable_scope("RNN"):
 		 	loss = tf.reduce_sum(xentropy)
 		 	total_loss += loss
 
+	total_loss = total_loss/tf.reduce_sum(mask[:,1:])
+
+global_step = tf.Variable(0, trainable=False)
 learning_rate = 0.001
+learning_rate = tf.train.exponential_decay(learning_rate, global_step, int(len(feat)/batchSz), 0.95)
 
 train_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss)
 
 
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+saver = tf.train.Saver(max_to_keep=100)
 
 def train(feat, captions):
-	for ind in range(0, feat.shape[0]-batchSz, batchSz):
-		print(str(ind) + " / " + str(feat.shape[0]))
-		current_feats = feat[ind: ind+batchSz]
-		current_caption = caption_encode[ind: ind+batchSz]
-		seq = caption_length[ind: ind+batchSz]
+	for i in range(epoch):
+		for ind in range(0, len(feat)-batchSz, batchSz):
+			print(str(ind) + " / " + str(feat.shape[0]) + " at epoch: " + str(i))
+			current_feats = feat[ind: ind+batchSz]
+			current_caption = caption_encode[ind: ind+batchSz]
+			seq = caption_length[ind: ind+batchSz]
 
 
-		feedDict = {img: current_feats, caption: current_caption, sequence: seq}
-		sessArgs = [total_loss, train_op]
-		loss, _ = sess.run(sessArgs, feedDict)
-		print(loss)
-
+			feedDict = {img: current_feats, caption: current_caption, sequence: seq}
+			sessArgs = [total_loss, train_op]
+			loss, _ = sess.run(sessArgs, feedDict)
+			print(loss)
+		print("saving epoch: " + str(i))
+		saver.save(sess, os.path.join(model_path, 'model'), global_step=i)
 
 train(feat, caption_encode)
 
