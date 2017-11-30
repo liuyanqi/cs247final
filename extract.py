@@ -1,25 +1,36 @@
 import numpy as np
 import pickle
 import tensorflow as tf
+import pandas as pd
 
 feature_file = "./data/Flicker8k_training_feat1.mat"
 caption_file = "./data/Flicker8k_training_text.mat"
 
+feature_path = './data/feats.npy'
+annotation_path = './data/results_20130124.token'
+
 vocab_dict = dict()
 idxtoword = dict()
+word_count = dict()
 vocabSz = 0
-batchSz = 20
+batchSz = 128
 featureSz = 4096
-hiddenSz = 100
+hiddenSz = 256
 embedSz = 256
 index = 6000
+word_count_thres = 30
 
-with open(feature_file, 'r') as f:
-	feat = pickle.load(f)
-with open(caption_file, 'r') as f:
-	captions = f.readlines()
+def get_data(annotation_path, feature_path):
+     annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
+     return np.load(feature_path,'r'), annotations['caption'].values
+feat, captions = get_data(annotation_path, feature_path)
 
-captions = np.array(captions)
+# with open(feature_file, 'r') as f:
+# 	feat = pickle.load(f)
+# with open(caption_file, 'r') as f:
+# 	captions = f.readlines()
+# captions = np.array(captions)
+
 print("done reading the files")
 print(captions.shape)
 print(feat.shape)
@@ -30,6 +41,7 @@ maxlen = 0
 for line in captions:
 	for word in line.lower().split():
 		all_words.append(word)
+		word_count[word] = word_count.get(word,0) +1
 	if(len(line.split()) > maxlen):
 		maxlen = len(line.split())
 
@@ -39,7 +51,7 @@ print("maxlen: ", str(maxlen))
 vocab_dict["START"] = 0
 
 vocabSz = 1
-vocab = set(all_words)
+vocab = [w for w in word_count if word_count[w] >= word_count_thres]
 for v in vocab:
 	vocab_dict[v] = vocabSz
 	idxtoword[vocabSz] = v
@@ -47,6 +59,7 @@ for v in vocab:
 
 vocab_dict["STOP"] = vocabSz
 stop = vocabSz
+vocabSz +=1
 print vocabSz
 
 caption_encode = []
@@ -102,16 +115,17 @@ with tf.variable_scope("RNN"):
 
 		#shape of output is batchSz* hiddenSz
 		#shape of logits is batchSz* vocabS
-		labels = tf.expand_dims(caption[:, i], 1)
-		ix_range=tf.range(0, batchSz, 1)
-		ixs = tf.expand_dims(ix_range, 1)
-		concat = tf.concat([ixs, labels],1)
-		onehot = tf.sparse_to_dense(concat, tf.stack([batchSz, vocabSz]), 1.0, 0.0)
-		logit = tf.matmul(output, W) + b
-		xentropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot)
-		xentropy = xentropy * mask[:,i]
-	 	loss = tf.reduce_sum(xentropy)
-	 	total_loss += loss
+		if i > 0:
+			labels = tf.expand_dims(caption[:, i], 1)
+			ix_range=tf.range(0, batchSz, 1)
+			ixs = tf.expand_dims(ix_range, 1)
+			concat = tf.concat([ixs, labels],1)
+			onehot = tf.sparse_to_dense(concat, tf.stack([batchSz, vocabSz]), 1.0, 0.0)
+			logit = tf.matmul(output, W) + b
+			xentropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=onehot)
+			xentropy = xentropy * mask[:,i]
+		 	loss = tf.reduce_sum(xentropy)
+		 	total_loss += loss
 
 learning_rate = 0.001
 
@@ -122,18 +136,19 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
 def train(feat, captions):
-	for ind in range(0, feat.shape[0], batchSz):
+	for ind in range(0, feat.shape[0]-batchSz, batchSz):
 		print(str(ind) + " / " + str(feat.shape[0]))
 		current_feats = feat[ind: ind+batchSz]
 		current_caption = caption_encode[ind: ind+batchSz]
 		seq = caption_length[ind: ind+batchSz]
 
+
 		feedDict = {img: current_feats, caption: current_caption, sequence: seq}
 		sessArgs = [total_loss, train_op]
-		loss,_ = sess.run(sessArgs, feedDict)
+		loss, _ = sess.run(sessArgs, feedDict)
 		print(loss)
 
 
-train(feat, caption)
+train(feat, caption_encode)
 
 
