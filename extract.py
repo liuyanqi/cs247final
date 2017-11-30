@@ -57,22 +57,24 @@ for v in vocab:
 	idxtoword[vocabSz] = v
 	vocabSz +=1
 
-vocab_dict["STOP"] = vocabSz
-stop = vocabSz
-vocabSz +=1
+
 print vocabSz
 
 caption_encode = []
 caption_length =[]
 for line in captions:
-	line = line.lower().split()
-	line = [vocab_dict[w] for w in line]
+	line = [vocab_dict[w] for w in line.lower().split()[:-1] if w in vocab_dict]
 	caption_length.append(len(line))
-
 	while(len(line) < maxlen):
-		line.append(stop)
+		line.append(0)
 	caption_encode.append(line)
+
 caption_encode = np.array(caption_encode)
+padd = np.full((len(caption_encode),), 0)
+caption_encode = np.column_stack((padd, caption_encode[:,:-1]))
+
+for i in range(5):
+	print(caption_encode[i])
 
 print("shape of caption_encoder: ", str(caption_encode.shape))
 #def build model
