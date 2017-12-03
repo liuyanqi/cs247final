@@ -14,7 +14,7 @@ import pickle
 
 train_image_path = "./data/Flicker8k_Dataset/"
 train_image_filename_path = "./data/Flicker8k_text/Flickr_8k.trainImages.txt"
-output_file = "./data/Flicker8k_training_feat.mat"
+output_file = "./data/Flicker8k_training_conv_feat_2.mat"
 train_file_names = []
 target_height = 224
 target_width = 224
@@ -46,7 +46,7 @@ with tf.device('/gpu:0'):
 	sess.run(tf.global_variables_initializer())
 
 	# for filename in train_file_names:
-	for counter in range(0, len(train_file_names), batchSz):
+	for counter in range(2*len(train_file_names)/3, len(train_file_names), batchSz):
 		print(str(counter) + " / " + str(len(train_file_names)))
 		
 		# img = Image.open(train_image_path + train_file_names[counter])
@@ -65,11 +65,14 @@ with tf.device('/gpu:0'):
 		# 	vgg.build(images)
 		# # print(vgg.data_dict["conv1_1"])
 
-		feat = sess.run(vgg.relu7, feed_dict=feed_dict)
+		# feat = sess.run(vgg.relu7, feed_dict=feed_dict)
+		tf.get_variable_scope().reuse_variables()
+
+		feat = sess.run(tf.contrib.layers.flatten(vgg.conv5_3), feed_dict=feed_dict)
+		print(feat.shape)
 		for idx, filename in enumerate(filename_list):
 			state[filename] = feat[idx]
 
-print(state[train_file_names[0]])
 with open(output_file, 'wb') as f:
 	pickle.dump(state, f)
 

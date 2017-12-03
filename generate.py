@@ -11,7 +11,7 @@ model_path = './models/'
 feature_path = './data/feats.npy'
 annotation_path = './data/results_20130124.token'
 
-image_path = "./image/10815824_2997e03d76.jpg"
+image_path = "./image/44856031_0d82c2c7d1.jpg"
 vocab_dict = dict()
 idxtoword = dict()
 word_count = dict()
@@ -72,9 +72,12 @@ rnn = tf.contrib.rnn.BasicLSTMCell(hiddenSz)
 
 E = tf.Variable(tf.random_normal([vocabSz, embedSz], stddev=0.1))
 state = rnn.zero_state(batchSz, tf.float32)
-maxlen =15
+maxlen =10
 
 all_words = []
+all_score = []
+
+beamSz = 2
 image_embedding = tf.matmul(img, img_embedding) + img_embedding_bias
 with tf.variable_scope("RNN"):
 	output, state = rnn(image_embedding, state)
@@ -83,15 +86,30 @@ with tf.variable_scope("RNN"):
 	for i in range(maxlen):
 		tf.get_variable_scope().reuse_variables()
 
+
 		output, state = rnn(previous_word, state)
 		logits = tf.matmul(output, W) + b
+		# best_score, best_word = tf.nn.top_k(logits, k=2, sorted=True, name=None)
 		best_word = tf.argmax(logits, 1)
+		# best_word = tf.argmax(logits, 1)
+			# temp_sentence=[]
+			# temp_score= []
+			# for idx, w in enumerate(best_word):
+			# 	previous_sentence = all_words[ind]
+			# 	previous_sentence.append(w)
+			# 	score = all_score[ind] + best_score[idx]
 
+			# 	temp_sentence.append(previous_sentence)
+			# 	temp_score.append(score)
+
+		# all_words, all_words_ind = tf.nn.top_k(temp_score, k=2, sorted=True, name=None)
+		# previous_word = all_words[:-1]
 
 		previous_word = tf.nn.embedding_lookup(E, best_word)
 		all_words.append(best_word)
 
 sess = tf.Session()
+saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
 
 image_input = read_image(image_path)
@@ -102,8 +120,9 @@ saved_path = tf.train.latest_checkpoint(model_path)
 saver.restore(sess, saved_path)
 
 generated_caption_index = sess.run(all_words, feed_dict={img: feat})
-generated_caption = [idxtowrod[ind] for ind in generated_caption_index]
-print(generated_sentence)
+print generated_caption_index
+generated_caption = [idxtoword[ind[0]] for ind in generated_caption_index]
+print(generated_caption)
 
 
 

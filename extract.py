@@ -10,7 +10,7 @@ caption_file = "./data/Flicker8k_training_text.mat"
 feature_path = './data/feats.npy'
 annotation_path = './data/results_20130124.token'
 
-model_path = './models/'
+model_path = './models2/'
 
 vocab_dict = dict()
 idxtoword = dict()
@@ -22,18 +22,18 @@ hiddenSz = 256
 embedSz = 256
 index = 6000
 word_count_thres = 30
-epoch=150
+epoch=100
 
-def get_data(annotation_path, feature_path):
-     annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
-     return np.load(feature_path,'r'), annotations['caption'].values
-feat, captions = get_data(annotation_path, feature_path)
+# def get_data(annotation_path, feature_path):
+#      annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
+#      return np.load(feature_path,'r'), annotations['caption'].values
+# feat, captions = get_data(annotation_path, feature_path)
 
-# with open(feature_file, 'r') as f:
-# 	feat = pickle.load(f)
-# with open(caption_file, 'r') as f:
-# 	captions = f.readlines()
-# captions = np.array(captions)
+with open(feature_file, 'r') as f:
+	feat = pickle.load(f)
+with open(caption_file, 'r') as f:
+	captions = f.readlines()
+captions = np.array(captions)
 
 print("done reading the files")
 print(captions.shape)
