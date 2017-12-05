@@ -6,12 +6,16 @@ import pandas as pd
 from PIL import Image
 import pickle
 import vgg16
+from tf_beam_decoder import beam_decoder
 
-model_path = './models/'
+model_path = './models3/'
 feature_path = './data/feats.npy'
 annotation_path = './data/results_20130124.token'
 
 image_path = "./image/44856031_0d82c2c7d1.jpg"
+# image_path = "./image/10815824_2997e03d76.jpg"
+# image_path = "./image/47871819_db55ac4699.jpg"
+# image_path = "./image/women_horse.jpg"
 vocab_dict = dict()
 idxtoword = dict()
 word_count = dict()
@@ -26,13 +30,13 @@ epoch=150
 
 def get_data(annotation_path, feature_path):
      annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
-     return np.load(feature_path,'r'), annotations['caption'].values
-feat, captions = get_data(annotation_path, feature_path)
+     return annotations['caption'].values
+captions = get_data(annotation_path, feature_path)
 
 print("done reading the files")
 print(captions.shape)
-print(feat.shape)
-trainSz = feat.shape[0]
+
+
 
 all_words = []
 for line in captions:
@@ -43,6 +47,7 @@ print("load all the words")
 
 vocab_dict["START"] = 0
 vocabSz = 1
+idxtoword[0] = '.'
 vocab = [w for w in word_count if word_count[w] >= word_count_thres]
 for v in vocab:
 	vocab_dict[v] = vocabSz
@@ -72,41 +77,47 @@ rnn = tf.contrib.rnn.BasicLSTMCell(hiddenSz)
 
 E = tf.Variable(tf.random_normal([vocabSz, embedSz], stddev=0.1))
 state = rnn.zero_state(batchSz, tf.float32)
-maxlen =10
+maxlen =20
 
 all_words = []
 all_score = []
 
-beamSz = 2
+def outputs_to_score_fn(model_output):
+	logits = tf.tensordot(model_output, W, axes=[[2],[0]]) + b
+	return tf.nn.log_softmax(logits)
+
+beamSz = 1
+
+
 image_embedding = tf.matmul(img, img_embedding) + img_embedding_bias
 with tf.variable_scope("RNN"):
 	output, state = rnn(image_embedding, state)
 	previous_word = tf.nn.embedding_lookup(E, [0])
 
-	for i in range(maxlen):
-		tf.get_variable_scope().reuse_variables()
+	with tf.variable_scope("RNN_beam") as scope:
+		best_sparse, best_logprobs = beam_decoder(
+			cell=rnn,
+			beam_size=beamSz,
+			stop_token= 0,
+			initial_state=state,
+			initial_input=previous_word,
+			tokens_to_inputs_fn= lambda x: tf.nn.embedding_lookup(E, x),
+			outputs_to_score_fn = lambda x: outputs_to_score_fn(x),
+			max_len=maxlen,
+			cell_transform='default',
+			output_dense=True,
+			scope=scope
+			)
+
+	# for i in range(maxlen):
+	# 	tf.get_variable_scope().reuse_variables()
 
 
-		output, state = rnn(previous_word, state)
-		logits = tf.matmul(output, W) + b
-		# best_score, best_word = tf.nn.top_k(logits, k=2, sorted=True, name=None)
-		best_word = tf.argmax(logits, 1)
-		# best_word = tf.argmax(logits, 1)
-			# temp_sentence=[]
-			# temp_score= []
-			# for idx, w in enumerate(best_word):
-			# 	previous_sentence = all_words[ind]
-			# 	previous_sentence.append(w)
-			# 	score = all_score[ind] + best_score[idx]
-
-			# 	temp_sentence.append(previous_sentence)
-			# 	temp_score.append(score)
-
-		# all_words, all_words_ind = tf.nn.top_k(temp_score, k=2, sorted=True, name=None)
-		# previous_word = all_words[:-1]
-
-		previous_word = tf.nn.embedding_lookup(E, best_word)
-		all_words.append(best_word)
+	# 	output, state = rnn(previous_word, state)
+	# 	prob = tf.matmul(output, W) + b
+	# 	best_word = tf.argmax(prob, 1)
+	# 	previous_word = tf.nn.embedding_lookup(E, best_word)
+	# 	all_words.append(best_word)
 
 sess = tf.Session()
 saver = tf.train.Saver()
@@ -119,9 +130,15 @@ feat = sess.run(vgg.relu7, feed_dict={image: [image_input]})
 saved_path = tf.train.latest_checkpoint(model_path)
 saver.restore(sess, saved_path)
 
-generated_caption_index = sess.run(all_words, feed_dict={img: feat})
-print generated_caption_index
-generated_caption = [idxtoword[ind[0]] for ind in generated_caption_index]
+bs, bl = sess.run([best_sparse, best_logprobs], feed_dict={img:feat})
+
+# generated_caption_index = sess.run(all_words, feed_dict={img: feat})
+generated_caption = [idxtoword[ind] for ind in bs[0]]
+# generated_caption = [idxtoword[ind[0]] for ind in generated_caption_index]
+# generated_caption = [idxtoword[ind] for ind in bs[0]]
+ind_end = np.argmax(np.array(generated_caption)=='.')
+generated_caption = generated_caption[:ind_end]
+
 print(generated_caption)
 
 

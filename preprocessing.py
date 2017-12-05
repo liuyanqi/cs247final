@@ -14,7 +14,7 @@ import pickle
 
 train_image_path = "./data/Flicker8k_Dataset/"
 train_image_filename_path = "./data/Flicker8k_text/Flickr_8k.trainImages.txt"
-output_file = "./data/Flicker8k_training_conv_feat_2.mat"
+output_file = "./data/Flicker8k_training_conv_feat_1.mat"
 train_file_names = []
 target_height = 224
 target_width = 224
@@ -46,7 +46,7 @@ with tf.device('/gpu:0'):
 	sess.run(tf.global_variables_initializer())
 
 	# for filename in train_file_names:
-	for counter in range(2*len(train_file_names)/3, len(train_file_names), batchSz):
+	for counter in range(len(train_file_names)/3, 2*len(train_file_names)/3, batchSz):
 		print(str(counter) + " / " + str(len(train_file_names)))
 		
 		# img = Image.open(train_image_path + train_file_names[counter])

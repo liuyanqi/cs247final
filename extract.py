@@ -4,13 +4,13 @@ import tensorflow as tf
 import pandas as pd
 import os
 
-feature_file = "./data/Flicker8k_training_feat1.mat"
+feature_file = "./data/Flicker8k_training_conv_feat.mat"
 caption_file = "./data/Flicker8k_training_text.mat"
 
 feature_path = './data/feats.npy'
 annotation_path = './data/results_20130124.token'
 
-model_path = './models2/'
+model_path = './models_conv/'
 
 vocab_dict = dict()
 idxtoword = dict()
@@ -24,10 +24,10 @@ index = 6000
 word_count_thres = 30
 epoch=100
 
-# def get_data(annotation_path, feature_path):
-#      annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
-#      return np.load(feature_path,'r'), annotations['caption'].values
-# feat, captions = get_data(annotation_path, feature_path)
+def get_data(annotation_path, feature_path):
+     annotations = pd.read_table(annotation_path, sep='\t', header=None, names=['image', 'caption'])
+     return np.load(feature_path,'r'), annotations['caption'].values
+feat, all_captions = get_data(annotation_path, feature_path)
 
 with open(feature_file, 'r') as f:
 	feat = pickle.load(f)
@@ -42,7 +42,7 @@ trainSz = feat.shape[0]
 
 all_words = []
 maxlen = 0
-for line in captions:
+for line in all_captions:
 	for word in line.lower().split():
 		all_words.append(word)
 		word_count[word] = word_count.get(word,0) +1
@@ -67,7 +67,7 @@ caption_encode = []
 caption_length =[]
 for line in captions:
 	line = [vocab_dict[w] for w in line.lower().split()[:-1] if w in vocab_dict]
-	caption_length.append(len(line))
+	caption_length.append(len(line)+2)
 	while(len(line) < maxlen):
 		line.append(0)
 	caption_encode.append(line)
@@ -147,6 +147,9 @@ def train(feat, captions):
 	for i in range(epoch):
 		for ind in range(0, len(feat)-batchSz, batchSz):
 			print(str(ind) + " / " + str(feat.shape[0]) + " at epoch: " + str(i))
+			# current_feats = feat[ind/5: (ind+batchSz)/5]
+			# current_feats = np.repeat(current_feats, 5, axis=0)
+			# print(current_feats)
 			current_feats = feat[ind: ind+batchSz]
 			current_caption = caption_encode[ind: ind+batchSz]
 			seq = caption_length[ind: ind+batchSz]
